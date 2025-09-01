@@ -13,6 +13,7 @@ import math
 import matplotlib.pyplot as plt
 import random
 import numpy as np
+from dataclasses import dataclass
 
 show_animation = True
 pause_time = 0.2
@@ -37,6 +38,16 @@ def add_coordinates(Gnode1: Gnode, Gnode2: Gnode):
 def compare_coordinates(Gnode1: Gnode, Gnode2: Gnode):
     return Gnode1.x == Gnode2.x and Gnode1.y == Gnode2.y
 
+@dataclass(frozen=True)  # Immutable and hashable
+class GridNode:
+    x: int
+    y: int
+    
+    def __add__(self, other):
+        return GridNode(self.x + other.x, self.y + other.y)
+    
+    def __sub__(self, other):
+        return GridNode(self.x - other.x, self.y - other.y)
 
 class DStarLite:
 
@@ -52,7 +63,7 @@ class DStarLite:
         Gnode(-1, 1, math.sqrt(2)),
         Gnode(-1, -1, math.sqrt(2))
     ]
-
+    
     def __init__(self, ox: list, oy: list):
         # Ensure that within the algorithm implementation all Gnode coordinates
         # are indices in the grid and extend
