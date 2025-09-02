@@ -13,7 +13,6 @@ import math
 import matplotlib.pyplot as plt
 import random
 import numpy as np
-from dataclasses import dataclass
 
 show_animation = True
 pause_time = 0.2
@@ -38,16 +37,6 @@ def add_coordinates(Gnode1: Gnode, Gnode2: Gnode):
 def compare_coordinates(Gnode1: Gnode, Gnode2: Gnode):
     return Gnode1.x == Gnode2.x and Gnode1.y == Gnode2.y
 
-@dataclass(frozen=True)  # Immutable and hashable
-class GridNode:
-    x: int
-    y: int
-    
-    def __add__(self, other):
-        return GridNode(self.x + other.x, self.y + other.y)
-    
-    def __sub__(self, other):
-        return GridNode(self.x - other.x, self.y - other.y)
 
 class DStarLite:
 
@@ -63,7 +52,7 @@ class DStarLite:
         Gnode(-1, 1, math.sqrt(2)),
         Gnode(-1, -1, math.sqrt(2))
     ]
-    
+
     def __init__(self, ox: list, oy: list):
         # Ensure that within the algorithm implementation all Gnode coordinates
         # are indices in the grid and extend
@@ -342,7 +331,7 @@ class DStarLite:
 def main():
 
     # start and goal position
-    sx = 22  # [m]
+    sx = 55  # [m]
     sy = 52  # [m]
     gx = 11  # [m]
     gy = 11  # [m]
@@ -389,17 +378,9 @@ def main():
         plt.plot()
         plt.pause(pause_time)
 
-    # Obstacles discovered at time = row
-    # time = 1, obstacles discovered at (0, 2), (9, 2), (4, 0)
-    # time = 2, obstacles discovered at (0, 1), (7, 7)
-    # ...
-    # when the spoofed obstacles are:
-    # spoofed_ox = [[0, 9, 4], [0, 7], [], [], [], [], [], [5]]
-    # spoofed_oy = [[2, 2, 0], [1, 7], [], [], [], [], [], [4]]
-
     # Reroute
-    # spoofed_ox = [[], [], [], [], [], [], [], [40 for _ in range(10, 21)]]
-    # spoofed_oy = [[], [], [], [], [], [], [], [i for i in range(10, 21)]]
+    spoofed_ox = [[], [], [], [], [], [], [], [40 for _ in range(10, 21)]]
+    spoofed_oy = [[], [], [], [], [], [], [], [i for i in range(10, 21)]]
 
     # Obstacles that demostrate large rerouting
     spoofed_ox = [[], [], [],
