@@ -271,7 +271,6 @@ class DStarLite:
         # if inconsistent -> ensure node is in PQ with current key
         if self.get_g(node) != self.get_rhs(node):
             self.U.add_or_update_task(node, self.calculate_key(node))
-
     def compute_shortest_path(self):
         iterations = 0
         # Loop until U empty or start is consistent and top key >= key(start)
@@ -397,7 +396,7 @@ class DStarLite:
         return path
 
     def extract_path(self) -> List[GridNode]:
-        """Extract path by following the gradient from start to goal with improved logic."""
+        """Extract path by following the gradient from start to goal."""
         if self.get_g(self.start) == math.inf:
             print("Cannot extract path: start is unreachable")
             return []
@@ -417,9 +416,6 @@ class DStarLite:
             best_succ = None
             best_total_cost = math.inf
             
-            # Track debugging info for stuck situations
-            valid_successors = []
-            
             for succ in self.get_successors(current):
                 if self.is_obstacle(succ) or succ in visited:
                     continue
@@ -429,44 +425,40 @@ class DStarLite:
                     continue
                 
                 g_succ = self.get_g(succ)
-                total_cost = edge_c + g_succ
                 
-                valid_successors.append((succ, edge_c, g_succ, total_cost))
+                # Skip successors with infinite g-values unless no alternatives
+                if g_succ == math.inf:
+                    continue
+                    
+                total_cost = edge_c + g_succ
                 
                 if total_cost < best_total_cost:
                     best_total_cost = total_cost
                     best_succ = succ
             
-            # If no best successor found, do more detailed analysis
+            # If no finite successors, trigger additional search
             if best_succ is None:
-                print(f"Path extraction failed at {current} - analyzing successors:")
-                print(f"Goal: {self.goal}, Distance to goal: {octile_heuristic(current, self.goal):.2f}")
-                print(f"Current g-value: {self.get_g(current):.6f}, rhs: {self.get_rhs(current):.6f}")
+                print(f"Path extraction failed at {current} - need more search goal {self.goal} ")
+                print(f"is self.goal in  self.dynamic_obstacles :{self.goal in self.dynamic_obstacles}")
+                print(f"Current g-value: {self.get_g(current)}, rhs: {self.get_rhs(current)}")
                 
-                print("Valid successors analysis:")
-                for succ, edge_c, g_succ, total_cost in valid_successors:
-                    print(f"  {succ}: edge_cost={edge_c:.2f}, g={g_succ:.6f}, total={total_cost:.6f}")
-                
-                # Check if we should accept infinite g-values as last resort
-                fallback_successors = []
+                # Check for unexplored successors
+                has_unexplored = False
                 for succ in self.get_successors(current):
-                    if self.is_obstacle(succ) or succ in visited:
-                        continue
-                    edge_c = self.cost(current, succ)
-                    if edge_c < math.inf:
+                    if not self.is_obstacle(succ) and succ not in visited:
                         g_succ = self.get_g(succ)
-                        if g_succ == math.inf:
-                            fallback_successors.append((succ, edge_c))
+                        edge_c = self.cost(current, succ)
+                        if g_succ == math.inf and edge_c < math.inf:
+                            has_unexplored = True
+                            break
                 
-                if fallback_successors:
-                    print(f"Found {len(fallback_successors)} unexplored successors - forcing broader search")
-                    # Force broader search around current position and goal
-                    self.force_recompute_region(current, radius=10)
-                    # Also force search around goal to ensure connectivity
-                    self.force_recompute_region(self.goal, radius=10)
+                if has_unexplored:
+                    print("Triggering additional search to explore unexplored regions")
+                    # Force broader search around current position
+                    self.force_recompute_region(current, radius=8)
                     continue
                 else:
-                    print("No valid successors found - path is blocked")
+                    print("No valid successors - path blocked")
                     return []
             
             current = best_succ
@@ -476,10 +468,6 @@ class DStarLite:
             print(f"Successfully extracted path with {len(path)} nodes")
         else:
             print(f"Path extraction stopped after {iteration_count} iterations at {current}")
-            # If we're very close to goal, this might still be acceptable
-            if octile_heuristic(current, self.goal) <= 2.0:
-                path.append(current)
-                print(f"Accepting partial path - very close to goal")
         
         return path
 
@@ -488,6 +476,7 @@ class DStarLite:
         return any(self.is_obstacle(node) for node in path)
 
     def update_dynamic_obstacles(self, added: Set[Tuple[int, int]], removed: Set[Tuple[int, int]]):
+        """Update dynamic obstacles and trigger replanning with proper change propagation."""
         changed_nodes = set()
         actually_changed = False
 
@@ -499,8 +488,9 @@ class DStarLite:
                 if self.is_valid(n):
                     changed_nodes.add(n)
                     actually_changed = True
+                    # print(f"Added dynamic obstacle at {n}")
 
-        # Process removed obstacles
+        # Process removed obstacles  
         for o in removed:
             if o in self.dynamic_obstacles:
                 self.dynamic_obstacles.remove(o)
@@ -508,29 +498,46 @@ class DStarLite:
                 if self.is_valid(n):
                     changed_nodes.add(n)
                     actually_changed = True
+                    # print(f"Removed dynamic obstacle at {n}")
 
         if not actually_changed:
             print("No actual changes to dynamic obstacles")
             return False
 
-        print(f"Updating {len(changed_nodes)} changed nodes")
-
-        # Update all changed nodes and propagate to predecessors
+        # print(f"Updating {len(changed_nodes)} changed nodes and their neighbors")
+        
+        # For each changed node, update all nodes that might be affected
+        nodes_to_update = set()
+        
+        # for node in changed_nodes:
+        #     # Add the node itself
+        #     nodes_to_update.add(node)
+            
+        #     # Add all neighbors - they might need to recompute paths through this node
+        #     for nb in self.get_neighbors(node):
+        #         if self.is_valid(nb):
+        #             nodes_to_update.add(nb)
+            
+        #     # For added obstacles: invalidate the node completely
+        #     if (node.x, node.y) in added:
+        #         if self.get_g(node) < math.inf:
+        #             # print(f"Invalidating obstacle node {node} (was g={self.get_g(node):.2f})")
+        #             self.set_g(node, math.inf)
+        #             self.set_rhs(node, math.inf)
+        
+        # # Update all affected nodes
+        # print(f"Total nodes to update: {len(nodes_to_update)}")
+        # for node in nodes_to_update:
+        #     self.update_vertex(node)
         for node in changed_nodes:
             if (node.x, node.y) in added:
-                # Node became blocked
                 self.set_g(node, math.inf)
                 self.set_rhs(node, math.inf)
 
-            # Always update the node itself
+        # Update exactly the changed nodes (update_vertex will handle predecessors via compute_shortest_path)
+        for node in changed_nodes:
             self.update_vertex(node)
-
-            # Propagate to all predecessors
-            for pred in self.get_predecessors(node):
-                if self.is_valid(pred) and not self.is_obstacle(pred):
-                    self.update_vertex(pred)
-
-        # Compute shortest path once
+        # Recompute shortest path
         print("Recomputing shortest path after dynamic obstacle update...")
         self.compute_shortest_path()
         return True
@@ -588,16 +595,17 @@ def visualize_grid(planner: DStarLite, path: List[GridNode] = None, figsize: Tup
     plt.show()
 
 
-def demo_simple_test():
-    """Simple test case to debug the path extraction issue."""
-    print("Running simple D* Lite test...")
+def demo_comprehensive():
+    """Comprehensive demo showcasing various D* Lite capabilities."""
+    print("Running comprehensive D* Lite demo...")
     
-    width, height = 20, 15
+    # Create a more interesting environment
+    width, height = 60, 40
     
-    # Create simple obstacle layout
+    # Create maze-like obstacles
     obstacles = set()
     
-    # Simple walls
+    # Outer walls
     for x in range(width):
         obstacles.add((x, 0))
         obstacles.add((x, height-1))
@@ -605,60 +613,85 @@ def demo_simple_test():
         obstacles.add((0, y))
         obstacles.add((width-1, y))
     
-    # Add a simple internal obstacle
-    for y in range(3, 8):
-        obstacles.add((10, y))
+    # Internal walls creating passages
+    for y in range(5, 25):
+        obstacles.add((15, y))
+    for y in range(15, 35):
+        obstacles.add((30, y))
+    for x in range(20, 40):
+        obstacles.add((x, 20))
     
     planner = DStarLite(width, height, obstacles)
     
     start = GridNode(5, 5)
-    goal = GridNode(15, 7)
+    goal = GridNode(50, 30)
 
-    print(f"Planning from {start} to {goal}")
+    # Test 1: Initial planning
+    print("\n=== Test 1: Initial Planning ===")
     path = planner.plan_path(start, goal)
-    
     if path:
-        print(f"Path found with {len(path)} nodes")
-        print(f"Path: {' -> '.join(str(p) for p in path[:5])}{'...' if len(path) > 5 else ''}")
-        visualize_grid(planner, path, figsize=(12, 8))
+        print(f"Initial path found with {len(path)} nodes")
+        print(f"Path cost estimate: {len(path):.1f}")
+        visualize_grid(planner, path)
     else:
-        print("No path found")
-        visualize_grid(planner, [], figsize=(12, 8))
-    
-    return planner, path
-
-
-def demo_comprehensive():
-    """Comprehensive demo showcasing various D* Lite capabilities."""
-    print("Running comprehensive D* Lite demo...")
-    
-    # Start with simpler test
-    planner, initial_path = demo_simple_test()
-    
-    if not initial_path:
-        print("Simple test failed, skipping comprehensive demo")
+        print("No initial path found - check obstacle configuration")
         return
+
+    # Test 2: Dynamic obstacle that blocks path
+    print("\n=== Test 2: Dynamic Obstacle Blocking Path ===")
+    if len(path) > 10:
+        # Block a section of the path
+        mid_section = path[len(path)//3:len(path)//3+5]
+        block_obstacles = {(n.x, n.y) for n in mid_section[:8]}
+        block_obstacles = {(20,5+i) for i in range(5)}  # Block a vertical section
+        block_obstacles.update({(30,10+i) for i in range(7)})
+        print(f"Adding obstacles at: {block_obstacles}")
+        
+        planner.update_dynamic_obstacles(block_obstacles, set())
+        
+        new_path = planner.extract_path()
+        if new_path:
+            print(f"Replanned path found with {len(new_path)} nodes")
+            visualize_grid(planner, new_path)
+        else:
+            print("No path after blocking - trying force recompute")
+            planner.force_recompute_region(planner.start, radius=15)
+            new_path = planner.extract_path()
+            if new_path:
+                print(f"Path found after force recompute: {len(new_path)} nodes")
+                visualize_grid(planner, new_path)
+
+    # Test 3: Moving start position
+    print("\n=== Test 3: Moving Start Position ===")
+    if path and len(path) > 5:
+        new_start = path[3]  # Move partway along the path
+        print(f"Moving start from {planner.start} to {new_start}")
+        
+        updated_path = planner.plan_path(new_start, goal)
+        if updated_path:
+            print(f"Updated path from new start: {len(updated_path)} nodes")
+            visualize_grid(planner, updated_path)
+
+    # Test 4: Removing obstacles to create shortcuts
+    print("\n=== Test 4: Removing Obstacles (Creating Shortcuts) ===")
+    # Remove some wall sections to create shortcuts
+    shortcut_removals = {(15, 12), (15, 13), (15, 14)}
+    print(f"Removing obstacles at: {shortcut_removals}")
     
-    print("\n" + "="*50)
-    print("Proceeding with comprehensive demo...")
+    planner.update_dynamic_obstacles(set(), shortcut_removals | block_obstacles)
     
-    # Test dynamic obstacles
-    print("\n=== Test: Adding Dynamic Obstacle ===")
-    
-    # Add obstacle that might block the path
-    block_obstacles = {(12, 6), (12, 7), (12, 8)}
-    print(f"Adding obstacles at: {block_obstacles}")
-    
-    planner.update_dynamic_obstacles(block_obstacles, set())
-    
-    new_path = planner.extract_path()
-    if new_path:
-        print(f"New path found with {len(new_path)} nodes after adding obstacles")
-        visualize_grid(planner, new_path, figsize=(12, 8))
-    else:
-        print("No path found after adding obstacles")
+    final_path = planner.extract_path()
+    if final_path:
+        print(f"Final optimized path: {len(final_path)} nodes")
+        visualize_grid(planner, final_path)
     
     print("\n=== Demo Complete ===")
+    print(f"Final statistics:")
+    print(f"- Grid size: {width} x {height}")
+    print(f"- Static obstacles: {len(obstacles)}")
+    print(f"- Dynamic obstacles: {len(planner.dynamic_obstacles)}")
+    print(f"- G-values computed: {len(planner.g_values)}")
+    print(f"- RHS values computed: {len(planner.rhs_values)}")
 
 
 if __name__ == '__main__':

@@ -10,6 +10,10 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        # add  nodes
+        ('share/' + package_name + '/nodes', ['planner/nodes/global_planner_node.py',
+                                               'planner/nodes/local_planner_node.py',
+                                               'planner/nodes/map_publisher.py']   ),  
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -20,6 +24,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'global_planner_node = planner.nodes.global_planner_node:main',
+            'local_planner_node = planner.nodes.local_planner_node:main',
+            'map_publisher = planner.nodes.map_publisher:main',
         ],
     },
 )

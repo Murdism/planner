@@ -262,11 +262,13 @@ def hybrid_a_star_planning(start, goal, ox, oy, xy_resolution, yaw_resolution):
                       round(start[1] / xy_resolution),
                       round(start[2] / yaw_resolution), True,
                       [start[0]], [start[1]], [start[2]], [True], cost=0)
+    
     goal_node = Node(round(goal[0] / xy_resolution),
                      round(goal[1] / xy_resolution),
                      round(goal[2] / yaw_resolution), True,
                      [goal[0]], [goal[1]], [goal[2]], [True])
-
+    print(f"start_node: {start_node}")
+    print(f"goal_node: {goal_node}")
     openList, closedList = {}, {}
 
     h_dp = calc_distance_heuristic(
