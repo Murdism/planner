@@ -549,7 +549,7 @@ def visualize_grid(planner: DStarLite, path: List[GridNode] = None, figsize: Tup
     
     # Create grid background
     grid = np.zeros((planner.height, planner.width, 3), dtype=np.float32)
-    grid.fill(1.0)  # white background
+    grid.fill(100.0)  # white background
 
     # Static obstacles (dark gray)
     for (x, y) in planner.obstacles:

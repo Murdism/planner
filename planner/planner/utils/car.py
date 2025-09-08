@@ -18,11 +18,11 @@ import numpy as np
 
 from utils.angle import rot_mat_2d
 
-WB = 3.0  # rear to front wheel
-W = 2.0  # width of car
-LF = 3.3  # distance from rear to vehicle front end
-LB = 1.0  # distance from rear to vehicle back end
-MAX_STEER = 0.6  # [rad] maximum steering angle
+WB = 2.29  # rear to front wheel
+W = 1.63  # width of car
+LF = 2.65  # distance from rear to vehicle front end
+LB = 0.37  # distance from rear to vehicle back end
+MAX_STEER = 0.52  # [rad] maximum steering angle
 
 BUBBLE_DIST = (LF - LB) / 2.0  # distance from rear to center of vehicle.
 BUBBLE_R = np.hypot((LF + LB) / 2.0, W / 2.0)  # bubble radius

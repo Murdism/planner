@@ -5,7 +5,6 @@ Hybrid A* path planning
 author: Zheng Zh (@Zhengzh)
 
 """
-
 import heapq
 import math
 import matplotlib.pyplot as plt
@@ -19,7 +18,7 @@ from utils.dynamic import calc_distance_heuristic
 import utils.reeds_shepp_path_planning as rs
 from utils.car import move, check_car_collision, MAX_STEER, WB, plot_car, BUBBLE_R
 
-XY_GRID_RESOLUTION = 1  # [m]
+XY_GRID_RESOLUTION = 1.5  # [m]
 YAW_GRID_RESOLUTION = np.deg2rad(15.0)  # [rad]
 MOTION_RESOLUTION = 0.1  # [m] path interpolate resolution
 N_STEER = 20  # number of steer command
@@ -50,10 +49,6 @@ class Node:
         self.parent_index = parent_index
         self.cost = cost
 
-    def __str__(self):
-        return str(self.x_index) + "," + str(self.y_index) + "," + str(
-            self.yaw_index) + "," + str(self.direction) + "," + str(
-            self.cost) + "," + str(self.parent_index)
 
 class Path:
 
@@ -266,16 +261,13 @@ def hybrid_a_star_planning(start, goal, ox, oy, xy_resolution, yaw_resolution):
                       round(start[1] / xy_resolution),
                       round(start[2] / yaw_resolution), True,
                       [start[0]], [start[1]], [start[2]], [True], cost=0)
-    
     goal_node = Node(round(goal[0] / xy_resolution),
                      round(goal[1] / xy_resolution),
                      round(goal[2] / yaw_resolution), True,
                      [goal[0]], [goal[1]], [goal[2]], [True])
-    print(f"start_node updated: {start_node}")
-    print(f"goal_node updated: {goal_node}")
+
     openList, closedList = {}, {}
 
-   
     h_dp = calc_distance_heuristic(
         goal_node.x_list[-1], goal_node.y_list[-1],
         ox, oy, xy_resolution, BUBBLE_R)
@@ -390,33 +382,33 @@ def sec_main():
 
     # --- build a box + two inner walls
     ox, oy = [], []
-    # for i in range(60):
-    #     ox.append(i); oy.append(0.0)
-    # for i in range(60):
-    #     ox.append(60.0); oy.append(i)
+    for i in range(60):
+        ox.append(i); oy.append(0.0)
+    for i in range(60):
+        ox.append(60.0); oy.append(i)
     for i in range(61):
         ox.append(i); oy.append(60.0)
-    # for i in range(61):
-    #     ox.append(0.0); oy.append(i)
+    for i in range(61):
+        ox.append(0.0); oy.append(i)
 
-    # for i in range(40):
-    #     ox.append(20.0); oy.append(10+i)
-    for i in range(20):
-        ox.append(40.0); oy.append(40.0 - i)
+    for i in range(40):
+        ox.append(20.0); oy.append(i)
+    for i in range(40):
+        ox.append(40.0); oy.append(60.0 - i)
 
     start = [10.0, 10.0, np.deg2rad(90.0)]
     goal  = [50.0, 50.0, np.deg2rad(-90.0)]
 
-    # print(f"min(ox): {min(ox)}, min(oy): {min(oy)}, max(ox): {max(ox)}, max(oy): {max(oy)}")
-
-    plan_and_draw(start, goal, XY_GRID_RESOLUTION, ox, oy, title_note="(+ added column @ x=30)")
+    # plan_and_draw(start, goal, XY_GRID_RESOLUTION, ox, oy, title_note="(+ added column @ x=30)")
     # print("XY_GRID_RESOLUTION : {}".format(XY_GRID_RESOLUTION))
 
     # --- Update 2: open a gap in the new column
-    gap_y = list(range(25, 45))
-    keep = [(x, y) for x, y in zip(ox, oy) if not (x == 30.0 and (y in gap_y))]
-    ox, oy = [p[0] for p in keep], [p[1] for p in keep]
-    plan_and_draw(start, goal, XY_GRID_RESOLUTION, ox, oy, title_note="(+ opened gap in column)")
+    # gap_y = list(range(10, 36))
+    # keep = [(x, y) for x, y in zip(ox, oy) if not (x == 30.0 and (y in gap_y))]
+    # ox, oy = [p[0] for p in keep], [p[1] for p in keep]
+    # plan_and_draw(start, goal, XY_GRID_RESOLUTION, ox, oy, title_note="(+ opened gap in column)")
+    goal  = [50.0, 38.0, np.deg2rad(-45.0)]
+    start = [3.0, 58.0, np.deg2rad(-45.0)]
 
     # --- Update 3: remove one inner wall completely
     keep = [(x, y) for x, y in zip(ox, oy) if not (x == 20.0 and 0.0 <= y <= 39.0)]
@@ -472,28 +464,28 @@ def main():
     for i in range(60):
         ox.append(i)
         oy.append(0.0)
-    # for i in range(60):
-    #     ox.append(60.0)
-    #     oy.append(i)
-    # for i in range(61):
-    #     ox.append(i)
-    #     oy.append(60.0)
+    for i in range(60):
+        ox.append(60.0)
+        oy.append(i)
+    for i in range(61):
+        ox.append(i)
+        oy.append(60.0)
     for i in range(61):
         ox.append(0.0)
         oy.append(i)
-    # for i in range(40):
-    #     ox.append(20.0)
-    #     oy.append(i)
+    for i in range(40):
+        ox.append(20.0)
+        oy.append(i)
     for i in range(40):
         ox.append(40.0)
-        oy.append(20.0 - i)
+        oy.append(60.0 - i)
 
     # Set Initial parameters
     start = [10.0, 10.0, np.deg2rad(90.0)]
-    goal = [10.0, 50.0, np.deg2rad(-90.0)]
+    goal = [50.0, 50.0, np.deg2rad(-90.0)]
 
-    print("startssssssssssssssssssssss : ", start)
-    print("goal ssssssssss: ", goal)
+    print("start : ", start)
+    print("goal : ", goal)
 
     if show_animation:
         plt.plot(ox, oy, ".k")

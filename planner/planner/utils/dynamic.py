@@ -45,7 +45,7 @@ def calc_final_path(goal_node, closed_node_set, resolution):
 def calc_distance_heuristic(gx, gy, ox, oy, resolution, rr):
     """
     gx: goal x position [m]
-    gx: goal x position [m]
+    gy: goal y position [m]
     ox: x position list of Obstacles [m]
     oy: y position list of Obstacles [m]
     resolution: grid resolution [m]
@@ -98,7 +98,7 @@ def calc_distance_heuristic(gx, gy, ox, oy, resolution, rr):
             if n_id in closed_set:
                 continue
 
-            if not verify_node(node, obstacle_map, min_x, min_y, max_x, max_y):
+            if not verify_node(node, obstacle_map, min_x, min_y, max_x, max_y,current,motion[i]):
                 continue
 
             if n_id not in open_set:
@@ -117,16 +117,23 @@ def calc_distance_heuristic(gx, gy, ox, oy, resolution, rr):
     return closed_set
 
 
-def verify_node(node, obstacle_map, min_x, min_y, max_x, max_y):
+def verify_node(node, obstacle_map, min_x, min_y, max_x, max_y,current,motion_sent):
     if node.x < min_x:
+        print(f"node.x < min_x: {node.x} < {min_x}")
         return False
     elif node.y < min_y:
+        print(f"node.y < min_y: {node.y} < {min_y}")
         return False
-    elif node.x >= max_x:
+    elif node.x >= max_x-min_x:
+        print(f"node.x >= max_x: {node.x} >= {max_x-min_x}")
+        print(f"current.x: {current.x} current.y: {current.y}")
+        print(f"motion_sent: {motion_sent}")
         return False
-    elif node.y >= max_y:
+    elif node.y >= max_y-min_y:
+        print(f"node.y >= max_y: {node.y} >= {max_y}")
         return False
 
+    # print(f"[index] node.x, node.y: {node.x, node.y,max_y,node.y >= int(max_y)}")
     if obstacle_map[node.x][node.y]:
         return False
 
@@ -139,11 +146,14 @@ def calc_obstacle_map(ox, oy, resolution, vr):
     max_x = round(max(ox))
     max_y = round(max(oy))
 
-    x_width = round(max_x - min_x)
-    y_width = round(max_y - min_y)
+    x_width = round(max_x - min_x) #+2
+    y_width = round(max_y - min_y) #+2
+    # print(f"[calc_obstacle_map] min_x: {min_x}, min_y: {min_y}, max_x: {max_x}, max_y: {max_y}")
 
     # obstacle map generation
     obstacle_map = [[False for _ in range(y_width)] for _ in range(x_width)]
+    # print(f"[calc_obstacle_map] x_width: {x_width}, y_width: {y_width}")
+    # print(f"[obstacle_map] len(obstacle_map): {len(obstacle_map)}, len(obstacle_map[0]): {len(obstacle_map[0])}")
     for ix in range(x_width):
         x = ix + min_x
         for iy in range(y_width):
